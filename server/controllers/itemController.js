@@ -2,19 +2,7 @@ import Category from '../models/category.js';
 import subCategory from '../models/subcategory.js';
 import Item from '../models/item.js';
 
-/* export const getItems = async (req, res) => {
-    try {
-        const items = await Item.find();
-        if (items.length === 0) {
-            return res.status(404).json({ message: 'No items found' });
-        }
-        res.status(200).json(items);
-    }
-    catch {
-        res.status(500).json({ message: 'Error fetching items', error });
-    }
-}
- */
+
 
 
 export const getItems = async (req, res) => {
@@ -52,11 +40,20 @@ export const getItems = async (req, res) => {
     res.status(500).json({ message: "Error fetching items", error: error.message });
   }
 };
+const capitalizeWords = (str) => {
+  return str
+    .toLowerCase()
+    .split(" ")
+    .filter(Boolean) // removes extra spaces
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
 
 export const createItem = async (req, res) => {
   try {
-    const { name, cat_id, subcat_id } = req.body; 
-
+    const {  cat_id, subcat_id } = req.body; 
+    let { name } = req.body;
+    name = capitalizeWords(name);
     
     const cat = await Category.findOne({ code: cat_id });
     if (!cat) return res.status(404).json({ message: "Category not found" });
@@ -84,7 +81,9 @@ export const createItem = async (req, res) => {
       name,
       cat_id,       
       subcat_id,  
-      code: newCode
+      code: newCode,
+      pcat_id: cat._id,
+      pscat_id: subcat._id
     });
   
   
@@ -108,4 +107,18 @@ export const getItemBySubcatId = async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: 'Error fetching items by subcategory ID', error });
     }
+}
+export const deleteItem = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const item = await Item.findById(id)
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+    await Item.findByIdAndDelete(id);
+    res.status(200).json({ message: 'Item deleted successfully' });
+    
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting item', error });
+  }
 }

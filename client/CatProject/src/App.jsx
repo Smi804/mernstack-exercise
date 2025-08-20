@@ -1,5 +1,6 @@
-import { useState,useEffect } from 'react'
-import { MoreVertical } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Delete } from 'lucide-react'
+import MyForm from './comp/MyForm'
 
 import './App.css'
 
@@ -9,117 +10,136 @@ function App() {
   const [subcategories, setSubcategories] = useState([]);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [openMenu, setOpenMenu] = useState(null);
-  const [newCategory, setNewCategory] = useState("");
-  const [newSubCategory, setNewSubCategory] = useState("");
-  const [selectedCategoryId, setSelectedCategoryId] = useState("");
+  const [selectedCategoryForTable, setSelectedCategoryForTable] = useState(null);
+  
+  
 
-  const [newItem, setNewItem] = useState("");
-  const [selectedSubCategoryId, setSelectedSubCategoryId] = useState("");
+const [selectedCatForItems, setSelectedCatForItems] = useState("");
+const [selectedSubCatForItems, setSelectedSubCatForItems] = useState("");
+
+
+const filteredSubCategories = selectedCategoryForTable
+  ? subcategories.filter((sub) => sub.cat_id === selectedCategoryForTable)
+  : subcategories;
+const filteredItems = items.filter((item) => {
+  if (selectedCatForItems && item.cat_id !== selectedCatForItems) return false;
+  if (selectedSubCatForItems && item.subcat_id !== selectedSubCatForItems) return false;
+  return true;
+});
 
   useEffect(() => {
     const fetchCategories = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("http://localhost:5000/api/categories");
-      const data = await res.json();
-      setCategories(data);
-    } catch (err) {
-      console.error("Error fetching categories:", err);
-    }
-    setLoading(false);
-  };
-   const fetchSubcategories = async () => {
-    try {
-      const res = await fetch(`http://localhost:5000/api/subcategories/`);
-      const data = await res.json();
-      setSubcategories(data);
-      
-    } catch (err) {
-      console.error("Error fetching subcategories:", err);
-    }
-  }; 
-  const fetchItems = async () => {
-    try {
-      const res = await fetch(`http://localhost:5000/api/items/`);
-      const data = await res.json();
-      
-      setItems(data);
-      if (data.length === 0) 
-        console.log("No items found");
-      console.log("Items fetched:", data);
-    } catch (err) {
-      console.error("Error fetching items:", err);
-    }
-  };
- 
+      setLoading(true);
+      try {
+        const res = await fetch("http://localhost:5000/api/categories");
+        const data = await res.json();
+        setCategories(data);
+      } catch (err) {
+        console.error("Error fetching categories:", err);
+      }
+      setLoading(false);
+    };
+    const fetchSubcategories = async () => {
+      try {
+        const res = await fetch(`http://localhost:5000/api/subcategories/`);
+        const data = await res.json();
+        setSubcategories(data);  
+      } catch (err) {
+        console.error("Error fetching subcategories:", err);
+      }
+    };
+    const fetchItems = async () => {
+      try {
+        const res = await fetch(`http://localhost:5000/api/items/`);
+        const data = await res.json();
+
+        setItems(data);
+        if (data.length === 0)
+          console.log("No items found");
+        console.log("Items fetched:", data);
+      } catch (err) {
+        console.error("Error fetching items:", err);
+      }
+    };
 
 
 
-  // Create subcategory
-/*   const createSubcategory = async (e) => {
-    e.preventDefault();
-    try {
-      await fetch("http://localhost:5000/api/subcategories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: subForm.name, cat_id: subForm.catId }),
-      });
-      fetchSubcategories(subForm.catId); // refresh subs
-      setSubForm({ catId: null, name: "" });
-    } catch (err) {
-      console.error("Error creating subcategory:", err);
-    }
-  }; */
 
-  // Create item
-/*   const createItem = async (e) => {
-    e.preventDefault();
-    try {
-      await fetch("http://localhost:5000/api/items", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: itemForm.name,
-          cat_id: itemForm.catId,
-          subcat_id: itemForm.subcatId,
-        }),
-      }); */
-     /*  fetchSubcategories(itemForm.catId); // refresh
-      setItemForm({ subcatId: null, name: "" });
-    } catch (err) {
-      console.error("Error creating item:", err);
-    }
-  }; */
+   
     fetchCategories();
     fetchSubcategories();
     fetchItems();
-   
+
   }, []);
+  const handleItemsDelete = async (id) => {
+  try {
+    const res = await fetch(`http://localhost:5000/api/items/${id}`, {
+      method: "DELETE",
+    });
 
-  /* const handleCreateCategory = async () => {
-    try {
-      const res = await fetch("http://localhost:5000/api/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: catName }),
-      });
-      await res.json();
-      setNewCategory(""); // Clear input field
-      console.log("Category created successfully");
+    const data = await res.json();
+    console.log("Delete response:", res.status, data);
 
-     // refresh
-    } catch (err) {
-      console.error("Error creating category:", err);
+    if (res.ok) {
+      alert(data.message);
+      setItems(items.filter((item) => item._id !== id));
+    } else {
+      throw new Error(data.message || "Failed to delete item");
     }
-  };   */
+  } catch (error) {
+    console.error("Error deleting item:", error);
+  }
+};
+const handleCatDelete = async (id) => {
+  try {
+    const res = await fetch(`http://localhost:5000/api/categories/${id}`, {
+      method: "DELETE",
+    });
+
+    const data = await res.json();
+    console.log("Delete response:", res.status, data);
+
+    if (res.ok) {
+      alert(data.message);
+      setCategories(categories.filter((cat) => cat._id !== id));
+    } else {
+      throw new Error(data.message || "Failed to delete category");
+    }
+  } catch (error) {
+    console.error("Error deleting category:", error);
+  }
+};
+const handleSubCatDelete = async (id) => {
+  try {
+    const res = await fetch(`http://localhost:5000/api/subcategories/${id}`, {
+      method: "DELETE",
+    });
+
+    const data = await res.json();
+    console.log("Delete response:", res.status, data);
+
+    if (res.ok) {
+      alert(data.message);
+      setSubcategories(subcategories.filter((subcat) => subcat._id !== id));
+    } else {
+      throw new Error(data.message || "Failed to delete subcategory");
+    }
+  } catch (error) {
+    console.error("Error deleting subcategory:", error);
+  }
+};
+
+
+    
+
+
 
   return (
     <div className="p-6">
       <h1 className="text-2xl w-full bg-yellow-500 font-bold">Categories</h1>
       {loading && <p>Loading...</p>}
-         <table className="min-w-full border-collapse border border-gray-300 rounded-lg shadow">
-          <thead>
+      <table className="min-w-full border-collapse border border-gray-300 rounded-lg shadow">
+        <thead>
           <tr className="bg-gray-200">
             <th className="border border-gray-300 px-4 py-2 text-left">Category Name</th>
             <th className="border border-gray-300 px-4 py-2 text-left">Code</th>
@@ -136,54 +156,44 @@ function App() {
                 {cat.code}
               </td>
               <td className="border border-gray-300 px-4 py-2 text-center relative">
-                {/* 3 dot menu */}
+                
                 <button
-                  className="p-2 hover:bg-gray-100 rounded-full"
-                  onClick={() =>
-                    setOpenMenu(openMenu === cat.code ? null : cat.code)
-                  }
+                  className="p-2 hover:bg-gray-100 text-red-600 rounded-full"
+                   onClick={()=>handleCatDelete(cat._id)} 
                 >
-                  <MoreVertical size={20} />
+                  <Delete size={20} />
                 </button>
 
-                {/* Dropdown menu */}
-                {openMenu === cat.code && (
-                  <div className="absolute right-2 mt-2 w-44 bg-white shadow-lg border rounded-lg z-10">
-                    <button
-                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                    >
-                      Show Subcategories
-                    </button>
-                    <button
-                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                      onClick={() => setSubForm({ catId: cat.code, name: "" })}
-                    >
-                      Create Subcategory
-                    </button>
-                  </div>
-                )}
+               
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-       {/* Create Category */}
-     {/*  <div>
-        <h3>Create Category</h3>
-        <input
-          type="text"
-          value={newCategory}
-          placeholder="Category Name"
-          onChange={(e) => setNewCategory(e.target.value)}
-        />
-        <button onClick={ handleCreateCategory }>Create Category</button>
-      </div> */}
-    <button className='bg-green-400 '>Create Categories</button>
 
-    <h1 className="text-2xl w-full bg-yellow-500 font-bold">Sub Categories</h1>
+    
+      
+      <h1 className="text-2xl h-9 w-full bg-yellow-500 pt-2 m-5 font-bold">SubCategories</h1>
+      <label className="block mb-4">
+      <span className="text-gray-700">Filter by Category</span>
+      <select
+        className="ml-2 border p-2 rounded"
+        value={selectedCategoryForTable || ""}
+        onChange={(e) => setSelectedCategoryForTable(e.target.value)} >
+  
+          <option value="">All Categories</option>
+           {categories.map((cat) => (
+           <option key={cat.name} value={cat.code}>
+           {cat.name}
+            </option>
+    ))}
+  </select>
+</label>
+
+      
       {loading && <p>Loading...</p>}
-         <table className="min-w-full border-collapse border border-gray-300 rounded-lg shadow">
-          <thead>
+      <table className="min-w-full border-collapse border border-gray-300 rounded-lg shadow">
+        <thead>
           <tr className="bg-gray-200">
             <th className="border border-gray-300 px-4 py-2 text-left">Sub Cat Name</th>
             <th className="border border-gray-300 px-4 py-2 text-center">Cat Name</th>
@@ -192,7 +202,7 @@ function App() {
           </tr>
         </thead>
         <tbody>
-          {subcategories.map((subcat) => (
+          {filteredSubCategories.map((subcat) => (
             <tr key={subcat.code} className="hover:bg-gray-50">
               <td className="border border-gray-300 px-4 py-2 font-semibold">
                 {subcat.name}
@@ -204,74 +214,100 @@ function App() {
                 {subcat.code}
               </td>
               <td className="border border-gray-300 px-4 py-2 text-center relative">
-                {/* 3 dot menu */}
                 <button
-                  className="p-2 hover:bg-gray-100 rounded-full"
-                  onClick={() =>
-                    setOpenMenu(openMenu === subcat.code ? null : subcat.code)
-                  }
-                >
-                  <MoreVertical size={20} />
-                </button>
-
-                {/* Dropdown menu */}
-                {openMenu === subcat.code && (
-                  <div className="absolute right-2 mt-2 w-44 bg-white shadow-lg border rounded-lg z-10">
-                    <button
-                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                    >
-                      Show Items
-                    </button>
-                    <button
-                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                      onClick={() => setSubForm({ catId: subcat.code, name: "" })}
-                    >
-                      Create Item
-                    </button>
-                  </div>
-                )}
+                  className="p-2 hover:bg-gray-100 text-red-600 rounded-full"
+                   onClick={() =>
+                    handleSubCatDelete(subcat._id)
+                  } 
+                  >
+                  <Delete size={20} />
+                </button> 
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-    <button className='bg-green-400'>Create SubCategories</button>
-<h1 className="text-2xl w-full bg-yellow-500 font-bold">Items</h1>
-  {loading && <p>Loading...</p>}
-         <table className="min-w-full border-collapse border border-gray-300 rounded-lg shadow">
-          <thead>
+      
+      <h1 className="text-2xl w-full bg-yellow-500 font-bold mt-10">Items</h1>
+      <label className="block mb-4">
+      <span className="text-gray-700">Filter by Category</span>
+      <select
+       className="ml-2 border p-2 rounded"
+       value={selectedCatForItems}
+       onChange={(e) => {
+       setSelectedCatForItems(e.target.value);
+       setSelectedSubCatForItems(""); 
+        }}  >
+       <option value="">All Categories</option>
+      {categories.map((cat) => (
+      <option key={cat.name} value={cat.code}>
+        {cat.name}
+      </option>
+      ))}
+     </select>
+     </label>
+     <label className="block mb-4">
+  <span className="text-gray-700">Filter by Subcategory</span>
+  <select
+    className="ml-2 border p-2 rounded"
+    value={selectedSubCatForItems}
+    onChange={(e) => setSelectedSubCatForItems(e.target.value)}
+    disabled={!selectedCatForItems} // disable if no category selected
+  >
+    <option value="">All Subcategories</option>
+    {subcategories.filter((sub) => sub.cat_id === selectedCatForItems)
+      .map((sub) => (
+        <option key={sub.name} value={sub.code}>
+          {sub.name}
+        </option>
+      ))}
+  </select>
+</label>
+
+
+      {loading && <p>Loading...</p>}
+      <table className="min-w-full border-collapse border border-gray-300 rounded-lg shadow">
+        <thead>
           <tr className="bg-gray-200">
             <th className="border border-gray-300 px-4 py-2 text-left">Item Name</th>
             <th className="border border-gray-300 px-4 py-2 text-left">Cat_Name</th>
             <th className="border border-gray-300 px-4 py-2 text-center">SubCat_Name</th>
             <th className="border border-gray-300 px-4 py-2 text-center">code</th>
-            
+            <th className="border border-gray-300 px-4 py-2 text-center">Actions</th>
+
           </tr>
         </thead>
         <tbody>
-          {items.length>=0 && items.map((ite) => (
+          {filteredItems.length >= 0 && filteredItems.map((ite) => (
             <tr key={ite.code} className="hover:bg-gray-50">
               <td className="border border-gray-300 px-4 py-2 font-semibold">
                 {ite.name}
               </td>
               <td className="border border-gray-300 px-4 py-2">
-                {ite.cat_name} 
+                {ite.cat_name}
               </td>
               <td className="border border-gray-300 px-4 py-2">
-                 {ite.subcat_name} 
+                {ite.subcat_name}
               </td>
               <td className="border border-gray-300 px-4 py-2">
                 {ite.code}
+              </td>
+              <td className="border border-gray-300 px-4 py-2 text-center relative">
+                <button
+                  className="p-2 hover:bg-gray-100 text-red-600 rounded-full"
+                   onClick={()=>handleItemsDelete(ite._id)} 
+                  >
+                  <Delete size={20} />
+                </button> 
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-    <button className='bg-green-400 '>Create Items</button>
-
-
+      
+     <MyForm/>
     </div>
-    
+
   );
 };
 

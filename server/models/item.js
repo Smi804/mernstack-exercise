@@ -18,6 +18,16 @@ const itemSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
+  pcat_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Category",
+    required: true
+
+  },
+  pscat_id: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: "SubCategory" },
+  
   createdAt: {
     type: Date,
     default: Date.now

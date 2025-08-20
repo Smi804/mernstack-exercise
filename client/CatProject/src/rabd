@@ -1,0 +1,9 @@
+ <select id="cat" 
+      name="category">
+        {categories.map((cat) => (
+              <option key={cat.code} value={cat.code} /* onClick={} */>
+                {cat.name}
+              </option>    
+          ))}
+
+      </select>

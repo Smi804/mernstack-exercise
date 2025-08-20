@@ -14,6 +14,11 @@ const subcategorySchema = new mongoose.Schema({
     required: true,
     unique: true
   },
+  pcat_id: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: "Category",
+    required: true
+  },
     createdAt: {
         type: Date,
         default: Date.now
