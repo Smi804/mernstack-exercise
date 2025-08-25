@@ -1,21 +1,25 @@
 import { useState, useEffect } from 'react'
-import { Delete } from 'lucide-react'
+import { Delete,PenLine } from 'lucide-react'
 import MyForm from './comp/MyForm'
+import Prompt from './comp/Prompt'
+import { API_ENDPOINTS } from './config/api'
 
 import './App.css'
 
 
 function App() {
+  const [showPrompt, setShowPrompt] = useState(false);
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedCategoryForTable, setSelectedCategoryForTable] = useState(null);
-  
-  
+  const [selectedCatForItems, setSelectedCatForItems] = useState("");
+  const [selectedSubCatForItems, setSelectedSubCatForItems] = useState("");
+  const [editType, setEditType] = useState(null); 
+  const [selectedRow, setSelectedRow] = useState(null);
+  const [showFormModal, setShowFormModal] = useState(false);
 
-const [selectedCatForItems, setSelectedCatForItems] = useState("");
-const [selectedSubCatForItems, setSelectedSubCatForItems] = useState("");
 
 
 const filteredSubCategories = selectedCategoryForTable
@@ -31,7 +35,7 @@ const filteredItems = items.filter((item) => {
     const fetchCategories = async () => {
       setLoading(true);
       try {
-        const res = await fetch("http://localhost:5000/api/categories");
+        const res = await fetch(API_ENDPOINTS.categories.getAll);
         const data = await res.json();
         setCategories(data);
       } catch (err) {
@@ -41,8 +45,9 @@ const filteredItems = items.filter((item) => {
     };
     const fetchSubcategories = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/subcategories/`);
+        const res = await fetch(API_ENDPOINTS.subcategories.getAll);
         const data = await res.json();
+        console.log("sub cats fetched");
         setSubcategories(data);  
       } catch (err) {
         console.error("Error fetching subcategories:", err);
@@ -50,7 +55,7 @@ const filteredItems = items.filter((item) => {
     };
     const fetchItems = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/items/`);
+        const res = await fetch(API_ENDPOINTS.items.getAll);
         const data = await res.json();
 
         setItems(data);
@@ -70,10 +75,56 @@ const filteredItems = items.filter((item) => {
     fetchSubcategories();
     fetchItems();
 
-  }, []);
-  const handleItemsDelete = async (id) => {
+  }, [setSubcategories,setItems]);
+const handleEditSave = async (newName) => {
+  if (!selectedRow || !editType) return;
+
+  let endpoint = "";
+  let stateSetter = null;
+
+  if (editType === "Category") {
+    endpoint = API_ENDPOINTS.categories.update(selectedRow._id);
+    stateSetter = setCategories;
+  } else if (editType === "SubCategory") {
+    endpoint =API_ENDPOINTS.subcategories.update(selectedRow._id);
+    stateSetter = setSubcategories;
+  } else if (editType === "Item") {
+    endpoint = API_ENDPOINTS.items.update(selectedRow._id);
+    stateSetter = setItems;
+  }
+
   try {
-    const res = await fetch(`http://localhost:5000/api/items/${id}`, {
+    const res = await fetch(endpoint, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newName }),
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      stateSetter((prev) =>
+        prev.map((row) =>
+          row._id === selectedRow._id ? { ...row, name: newName } : row
+        )
+      );
+    } else {
+      alert(data.message || "Failed to update");
+    }
+  } catch (err) {
+    console.error("Error updating:", err);
+  }
+};
+
+
+
+  const handleItemsDelete = async (id) => {
+     const confirmDelete = window.confirm(
+    `Are you sure you want to delete item?`
+  );
+
+  if (confirmDelete) {
+  try {
+    const res = await fetch(API_ENDPOINTS.items.delete(id), {
       method: "DELETE",
     });
 
@@ -89,10 +140,32 @@ const filteredItems = items.filter((item) => {
   } catch (error) {
     console.error("Error deleting item:", error);
   }
+}
 };
 const handleCatDelete = async (id) => {
+    const cat = categories.find((c) => c._id === id);
+  if (!cat) {
+    console.error("Category not found in state");
+    return;
+  }
+
+  // check in subcategories + items arrays
+  const relatedSubcats = subcategories.filter((s) => s.cat_id === cat.code);
+  const relatedItems = items.filter((i) => i.cat_id === cat.code);
+
+  let message = `Are you sure you want to delete category "${cat.name}"?`;
+
+  if (relatedSubcats.length > 0) {
+    message += `\n\nThis category also has ${relatedSubcats.length} subcategories that will be deleted.`;
+  }
+  if (relatedItems.length > 0) {
+    message += `\n This category also has ${relatedItems.length} items that will be deleted.`;
+  }
+
+  const confirmDelete = window.confirm(message);
+  if (!confirmDelete) return;
   try {
-    const res = await fetch(`http://localhost:5000/api/categories/${id}`, {
+    const res = await fetch(API_ENDPOINTS.categories.delete(id), {
       method: "DELETE",
     });
 
@@ -101,17 +174,38 @@ const handleCatDelete = async (id) => {
 
     if (res.ok) {
       alert(data.message);
-      setCategories(categories.filter((cat) => cat._id !== id));
+        setCategories((prev) => prev.filter((c) => c._id !== cat._id));
+        setSubcategories((prev) => prev.filter((sub) => sub.cat_id !== cat.code));
+        setItems((prev) => prev.filter((item) => item.cat_id !== cat.code));
     } else {
       throw new Error(data.message || "Failed to delete category");
     }
   } catch (error) {
     console.error("Error deleting category:", error);
   }
+
 };
 const handleSubCatDelete = async (id) => {
+  const sub = subcategories.find((c) => c._id === id);
+  if (!sub) {
+    console.error("Subcategory not found in state");
+    return;
+  }
+
+  // check in items array
+  const relatedItems = items.filter((i) => i.subcat_id === sub.code);
+
+  let message = `Are you sure you want to delete subcategory "${sub.name}"?`;
+
+  if (relatedItems.length > 0) {
+    message += `\n\n This subcategory also has ${relatedItems.length} items that will be deleted.`;
+  }
+
+  const confirmDelete = window.confirm(message);
+  if (!confirmDelete) return;
+  
   try {
-    const res = await fetch(`http://localhost:5000/api/subcategories/${id}`, {
+    const res = await fetch(API_ENDPOINTS.subcategories.delete(id), {
       method: "DELETE",
     });
 
@@ -120,13 +214,15 @@ const handleSubCatDelete = async (id) => {
 
     if (res.ok) {
       alert(data.message);
-      setSubcategories(subcategories.filter((subcat) => subcat._id !== id));
+        setSubcategories((prev) => prev.filter((s) => s._id !== sub._id));
+        setItems((prev) => prev.filter((item) => item.subcat_id !== sub.code));
     } else {
       throw new Error(data.message || "Failed to delete subcategory");
     }
   } catch (error) {
     console.error("Error deleting subcategory:", error);
   }
+
 };
 
 
@@ -148,20 +244,30 @@ const handleSubCatDelete = async (id) => {
         </thead>
         <tbody>
           {categories.map((cat) => (
-            <tr key={cat.code} className="hover:bg-gray-50">
+            <tr key={cat._id} className="hover:bg-gray-50">
               <td className="border border-gray-300 px-4 py-2 font-semibold">
                 {cat.name}
               </td>
               <td className="border border-gray-300 px-4 py-2">
                 {cat.code}
               </td>
-              <td className="border border-gray-300 px-4 py-2 text-center relative">
+              <td className="border border-gray-300 px-4 py-2 flex flex-row justify-center text-center relative">
                 
                 <button
-                  className="p-2 hover:bg-gray-100 text-red-600 rounded-full"
+                  className="p-3 hover:bg-gray-200 text-red-600 rounded-full"
                    onClick={()=>handleCatDelete(cat._id)} 
                 >
                   <Delete size={20} />
+                </button>
+                <button
+                  className="p-3 hover:bg-gray-200 text-green-500 rounded-full"
+                    onClick={() => {
+                     setSelectedRow(cat);
+                     setEditType("Category");
+                     setShowPrompt(true);
+                    }}
+                >
+                  <PenLine size={20} />
                 </button>
 
                
@@ -183,7 +289,7 @@ const handleSubCatDelete = async (id) => {
   
           <option value="">All Categories</option>
            {categories.map((cat) => (
-           <option key={cat.name} value={cat.code}>
+           <option key={cat._id} value={cat.code}>
            {cat.name}
             </option>
     ))}
@@ -203,7 +309,7 @@ const handleSubCatDelete = async (id) => {
         </thead>
         <tbody>
           {filteredSubCategories.map((subcat) => (
-            <tr key={subcat.code} className="hover:bg-gray-50">
+            <tr key={subcat._id} className="hover:bg-gray-50">
               <td className="border border-gray-300 px-4 py-2 font-semibold">
                 {subcat.name}
               </td>
@@ -213,15 +319,25 @@ const handleSubCatDelete = async (id) => {
               <td className="border border-gray-300 px-4 py-2">
                 {subcat.code}
               </td>
-              <td className="border border-gray-300 px-4 py-2 text-center relative">
+              <td className="border border-gray-300 px-4 py-2 flex flex-row justify-center text-center relative">
                 <button
-                  className="p-2 hover:bg-gray-100 text-red-600 rounded-full"
+                  className="p-3 hover:bg-gray-200 text-red-600 rounded-full"
                    onClick={() =>
                     handleSubCatDelete(subcat._id)
                   } 
                   >
                   <Delete size={20} />
                 </button> 
+                <button
+                  className="p-3 hover:bg-gray-200 text-green-500 rounded-full"
+                    onClick={() => {
+                     setSelectedRow(subcat);
+                     setEditType("SubCategory");
+                     setShowPrompt(true);
+                    }}
+                  >
+                  <PenLine size={20} />
+                </button>
               </td>
             </tr>
           ))}
@@ -292,12 +408,22 @@ const handleSubCatDelete = async (id) => {
               <td className="border border-gray-300 px-4 py-2">
                 {ite.code}
               </td>
-              <td className="border border-gray-300 px-4 py-2 text-center relative">
+              <td className="border border-gray-300 px-4 py-2 flex flex-row justify-center text-center relative">
                 <button
-                  className="p-2 hover:bg-gray-100 text-red-600 rounded-full"
+                  className="p-3 hover:bg-gray-200 text-red-600 rounded-full"
                    onClick={()=>handleItemsDelete(ite._id)} 
                   >
                   <Delete size={20} />
+                </button>
+                <button
+                  className="p-3 hover:bg-gray-200 text-green-500 rounded-full"
+                   onClick={() => {
+                     setSelectedRow(ite);
+                     setEditType("Item");
+                     setShowPrompt(true);
+                    }}
+                  >
+                  <PenLine size={20} />
                 </button> 
               </td>
             </tr>
@@ -305,7 +431,23 @@ const handleSubCatDelete = async (id) => {
         </tbody>
       </table>
       
-     <MyForm/>
+    
+     <Prompt
+      isOpen={showPrompt}
+      onClose={() => setShowPrompt(false)}
+      onSave={handleEditSave}
+      editType={editType} 
+      edit={selectedRow ? selectedRow.name : ""}
+      />
+       <MyForm 
+     categories={categories}
+     setCategories={setCategories}
+     subcategories={subcategories}
+     setSubcategories={setSubcategories}
+     setItems={setItems}
+     />
+
+
     </div>
 
   );

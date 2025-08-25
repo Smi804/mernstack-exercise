@@ -7,10 +7,10 @@ import Item from '../models/item.js';
 
 export const getItems = async (req, res) => {
   try {
-    // fetch all items
+    
     const items = await Item.find();
     if (items.length === 0) {
-      return res.status(404).json({ message: "No items found" });
+      return res.status(200).json({ message: "No items found"});
     }
 
     // fetch all categories & subcategories
@@ -120,5 +120,24 @@ export const deleteItem = async (req, res) => {
     
   } catch (error) {
     res.status(500).json({ message: 'Error deleting item', error });
+  }
+}
+export const editItem = async (req, res) => {
+  try {
+    const { id } = req.params; // item id
+    let { name } = req.body;
+    name = capitalizeWords(name);
+    
+    const updatedItem = await Item.findByIdAndUpdate(
+      id,
+      { name },
+      { new: true }
+    );
+    if (!updatedItem) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+    res.status(200).json(updatedItem);
+  } catch (error) {
+    res.status(500).json({ message: 'Error editing item', error: error.message });
   }
 }

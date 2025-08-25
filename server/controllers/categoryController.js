@@ -64,3 +64,26 @@ export const deleteCategory = async (req, res) => {
     res.status(500).json({ message: 'Error deleting category', error });
   }
 }
+
+export const editCategory = async (req, res) => {
+  try {
+    const { id } = req.params; // category id from route
+    let { name } = req.body; // new name
+
+    name = capitalizeWords(name);
+
+    const updatedCategory = await Category.findByIdAndUpdate(
+      id,
+      { name },
+      { new: true } 
+    );
+
+    if (!updatedCategory) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+
+    res.json(updatedCategory);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
